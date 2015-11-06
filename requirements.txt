@@ -16,4 +16,5 @@
 #hadoop
 'pyhs2',
 'impyla',
-'pexpect'
+'pexpect',
+'MySQL-python'

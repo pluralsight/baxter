@@ -14,21 +14,24 @@ from setuptools import setup, find_packages
 #         for line in f.read().split('\n')
 #     ]
 
-# setup(name='pyLoveLamp',
-#       version='0.1',
-#       description='Classy data processing functions to make python etl easy',
-#       author='Pluralsight Data Engineering',
-#       author_email='data-engineering@pluralsight.com',
-#       packages=find_packages(exclude=['contrib', 'docs', 'tests*']),
-#       #packages=['googlecloud','hadoop','files','relationaldb','toobox'],
-#       install_requires=['httplib2'],
-# )
-
-      #,
-      #install_requires=requirements
+# Read the version number
+with open("baxter/_version.py") as f:
+    exec(f.read())
 
 setup(name='baxter',
-      version='0.1',
+      version=__version__, # use the same version that's in _version.py
       packages=['baxter'],
-      install_requires=['httplib2', 'google-api-python-client', 'urllib3', 'oauth2client', 'pyodbc', 'impyla', 'pexpect']
+      license='LICENSE.txt',
+      description='libraries for data engineering, created by Pluralsight data team',
+      long_description=open('README.rst').read(),
+      install_requires=[
+                        'httplib2',
+                        'google-api-python-client',
+                        'urllib3',
+                        'oauth2client',
+                        'pyodbc',
+                        'impyla',
+                        'pexpect',
+                        'MySQL-python'
+                        ]
 )
