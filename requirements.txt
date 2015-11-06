@@ -1,0 +1,19 @@
+# googlecloud
+'httplib2',
+'google-api-python-client',
+'urllib3',
+'oauth2client',
+
+# relationaldb
+'pyodbc',
+
+# toolbox
+# N/A
+
+# files
+# N/A
+
+#hadoop
+'pyhs2',
+'impyla',
+'pexpect'
