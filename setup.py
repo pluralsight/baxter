@@ -29,9 +29,10 @@ setup(name='baxter',
                         'google-api-python-client',
                         'urllib3',
                         'oauth2client',
-                        'pyodbc',
-                        'impyla',
-                        'pexpect',
-                        'MySQL-python'
-                        ]
+                        'pyodbc'
+                       ]
+                        #,
+                        #'impyla',
+                        #'pexpect',
+                        #'MySQL-python'
 )

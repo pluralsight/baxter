@@ -1,6 +1,8 @@
 # Specific files
 config.py
 test_config.py
+.DS_Store
+.idea
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

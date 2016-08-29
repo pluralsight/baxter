@@ -1,9 +1,6 @@
 #!/usr/bin/env python
-
-import sys
 import json
 import csv
-import time
 
 import logging
 logging.basicConfig() #included to avoid message when oauth2client tries to write to log
