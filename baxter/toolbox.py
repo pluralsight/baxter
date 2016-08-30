@@ -75,3 +75,10 @@ def _defaultencode(o):
     if isinstance(o, Decimal):
         return str(o)   
     raise TypeError(repr(o) + " is not JSON serializable")
+
+def punt_baxter():
+    try:
+        import webbrowser
+        webbrowser.open('https://giphy.com/gifs/will-ferrell-anchorman-jack-black-ikcJ56KAyhm8w/fullscreen')
+    except Exception as e:
+        print "The man punted baxter! I'm in a glass case of emotion."

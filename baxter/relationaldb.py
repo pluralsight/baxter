@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-import sys
-import time
 import pyodbc
 import json
 from toolbox import process_data_row
