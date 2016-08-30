@@ -6,9 +6,8 @@ from baxter import googlecloud
 from baxter import toolbox
 from baxter import relationaldb
 from apiclient.discovery import build
-from apiclient.errors import HttpError
-from oauth2client.client import SignedJwtAssertionCredentials
-from test_config import GC_SERVICE_ACCOUNT_EMAIL, GC_SECRET_KEY_PATH, BQ_PROJECT, BQ_DATASET_PROD, GS_BUCKET, DB_SERVER, DB_NAME, DB_USER, DB_PASSWORD, TEST_DATA_PATH
+from test_config import (GC_SERVICE_ACCOUNT_EMAIL, GC_SECRET_KEY_PATH, BQ_PROJECT, BQ_DATASET_PROD, GS_BUCKET, DB_SERVER,
+                        DB_NAME, DB_USER, DB_PASSWORD, LOCAL_TEST_DATA_PATH, BQ_TEST_DATA_PATH)
 
 run_bq_test = 1
 run_mssql_test = 0
@@ -53,13 +52,40 @@ def test_bq_list_datasets_1():
     googlecloud.list_datasets(bqservice, project_id)
     assert True
 
+
+def test_gc_upload_1():
+    if run_bq_test:
+        gs_token = googlecloud.gcloud_connect(GC_SERVICE_ACCOUNT_EMAIL, GC_SECRET_KEY_PATH,
+                                              'https://www.googleapis.com/auth/devstorage.read_write')
+        gsservice = build('storage', 'v1', http=gs_token)
+        project_id = BQ_PROJECT
+        bucket = GS_BUCKET
+        source_file = LOCAL_TEST_DATA_PATH + 'test_table_data.csv'
+        dest_file = BQ_TEST_DATA_PATH + 'test_table_data.csv'
+    googlecloud.cloudstorage_upload(gsservice, project_id, bucket, source_file, dest_file,
+                                    show_status_messages=False)
+
+
+def test_gc_upload_2():
+    if run_bq_test:
+        gs_token = googlecloud.gcloud_connect(GC_SERVICE_ACCOUNT_EMAIL, GC_SECRET_KEY_PATH,
+                                              'https://www.googleapis.com/auth/devstorage.read_write')
+        gsservice = build('storage', 'v1', http=gs_token)
+        project_id = BQ_PROJECT
+        bucket = GS_BUCKET
+        source_file = LOCAL_TEST_DATA_PATH + 'test_table_data.json'
+        dest_file = BQ_TEST_DATA_PATH + 'test_table_data.json'
+    googlecloud.cloudstorage_upload(gsservice, project_id, bucket, source_file, dest_file,
+                                    show_status_messages=False)
+
+
 def test_bq_load_table_from_file_1():
     bq_token = googlecloud.gcloud_connect(GC_SERVICE_ACCOUNT_EMAIL, GC_SECRET_KEY_PATH, 'https://www.googleapis.com/auth/bigquery')
     bqservice = build('bigquery', 'v2', http=bq_token)
     project_id = BQ_PROJECT
     dataset_id = BQ_DATASET_PROD
     target_table = 'test_table'
-    sourceCSV = TEST_DATA_PATH + 'test_table_data.csv'
+    sourceCSV = BQ_TEST_DATA_PATH + 'test_table_data.csv'
     googlecloud.load_table_from_file(bqservice, project_id, dataset_id, target_table, sourceCSV,field_list=None,delimiter='\t',skipLeadingRows=0, overwrite=False)
     assert True
 
@@ -69,7 +95,7 @@ def test_bq_load_table_from_json_1():
     project_id = BQ_PROJECT
     dataset_id = BQ_DATASET_PROD
     target_table = 'test_table'
-    source_file = TEST_DATA_PATH + 'test_table_data.json'
+    source_file = BQ_TEST_DATA_PATH + 'test_table_data.json'
     googlecloud.load_table_from_json(bqservice, project_id, dataset_id, target_table, source_file, field_list=None, overwrite=False)
     assert True
 
@@ -102,8 +128,6 @@ def test_bq_query_1():
 # def test_bq_delete_table_1():
 #     googlecloud.delete_table(service, project_id,dataset_id,table)
 
-# def test_gc_upload_1():
-#     googlecloud.cloudstorage_upload(service, project_id, bucket, source_file,dest_file, show_status_messages=False)
 
 # def test_gc_download_1():
 #     googlecloud.cloudstorage_download(cloudstorage_download(service, project_id, bucket, source_file, dest_file, show_status_messages=False)
@@ -112,4 +136,9 @@ def test_bq_query_1():
 #     googlecloud.cloudstorage_delete(service, project_id, bucket, filename, show_status_messages=False)
 
 if __name__ == "__main__":
+    test_gc_upload_1()
+    test_gc_upload_2()
+    test_bq_load_table_from_file_1()
+    test_bq_load_table_from_json_1()
     test_bq_export_table_1()
+    test_bq_query_1()

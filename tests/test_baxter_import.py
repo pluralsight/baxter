@@ -14,10 +14,10 @@ def test_relationaldb_import():
     from baxter import relationaldb
     pass
 
-def test_files_import():
-    from baxter import files
+def test_postgres_import():
+    from baxter import postgres
     pass
 
-def test_hadoop_import():
-    from baxter import hadoop
+def test_files_import():
+    from baxter import files
     pass

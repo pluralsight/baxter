@@ -1,15 +1,9 @@
 #!/usr/bin/env python
-import sys
-import time
 import psycopg2
-import json
-from psdata_toolbox import process_data_row
-from psdata_toolbox import _defaultencode
-from psdata_files import loop_csv_file
-from psdata_files import get_schema_file
-from psdata_files import loop_delimited_file
-from psdata_files import json_file_to_tsv
-from psdata_files import loop_json_file
+from files import loop_csv_file
+from files import get_schema_file
+from files import loop_delimited_file
+from files import loop_json_file
 
 
 def connect(server, database, username, password):

@@ -8,6 +8,8 @@ BQ_PROJECT = '<BigQuery Project Id>'
 BQ_DATASET_STAGE = '<BigQuery Dataset (Stage)>'
 BQ_DATASET_PROD = '<BigQuery Dataset (Prod)>'
 GS_BUCKET = '<Google Cloud Storage Bucket name>'
+LOCAL_TEST_DATA_PATH = '/Users/test/baxter/data/'
+BQ_TEST_DATA_PATH = 'gs://test/baxter/data/'
 
 DB_CRED_FILE = 'config/databaselogin.config'
 DB_SERVER = '0.0.0.0'  #Add your SQL Server IP
