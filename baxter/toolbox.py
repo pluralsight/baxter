@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-import sys
-import time
 import json
 from decimal import Decimal
+import requests
 
 def data_records_to_json(data_list,schema_list,dest_file):
     with open(dest_file,'wb') as outfile:
@@ -76,9 +75,16 @@ def _defaultencode(o):
         return str(o)   
     raise TypeError(repr(o) + " is not JSON serializable")
 
+
 def punt_baxter():
     try:
         import webbrowser
         webbrowser.open('https://giphy.com/gifs/will-ferrell-anchorman-jack-black-ikcJ56KAyhm8w/fullscreen')
     except Exception as e:
         print "The man punted baxter! I'm in a glass case of emotion."
+
+
+def send_alert_to_opsgenie(api_url, api_key, message, description):
+    payload = {'apiKey': api_key, 'message': message, 'description': description}
+    json_payload = json.dumps(payload)
+    r = requests.post(api_url, data=json_payload)
