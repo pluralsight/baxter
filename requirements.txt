@@ -11,8 +11,7 @@
 'requests',
 
 # files
-'json',
-'csv'
+#NA
 
 #postgres
 'psycopg2',
