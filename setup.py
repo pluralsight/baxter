@@ -25,11 +25,15 @@ setup(name='baxter',
       description='libraries for data engineering, created by Pluralsight data team',
       long_description=open('README.rst').read(),
       install_requires=[
+                        'json',
+                        'csv',
                         'httplib2',
                         'google-api-python-client',
                         'urllib3',
                         'oauth2client',
-                        'pyodbc'
+                        'pyodbc',
+                        'requests',
+                        'psycopg2'
                        ]
                         #,
                         #'impyla',
