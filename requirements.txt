@@ -8,10 +8,14 @@
 'pyodbc',
 
 # toolbox
-# N/A
+'requests',
 
 # files
-# N/A
+'json',
+'csv'
+
+#postgres
+'psycopg2',
 
 #hadoop
 #'pyhs2',
