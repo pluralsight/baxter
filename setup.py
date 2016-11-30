@@ -28,7 +28,7 @@ setup(name='baxter',
                         'httplib2',
                         'google-api-python-client',
                         'urllib3',
-                        'oauth2client',
+                        'oauth2client < 4.0.0',
                         'pyodbc',
                         'requests',
                         'psycopg2'
