@@ -70,6 +70,55 @@ def process_data_row(row,schema_list):
     return result_dct
 
 
+def process_postgres_data_row(row,schema_list):
+    tmp_set = set()
+    result_dct = {}
+    i = 0
+    print schema_list
+    for k,t in schema_list:
+        if "list" in str(t):
+            tmp_val = row[i]
+        try:
+            if str(t) == '1114': # datetime
+                if row[i] is None or row[i] =="":
+                    result_dct[k] = None
+                else:
+                    result_dct[k] = str(row[i])
+            elif str(t) == '1043': # varchar
+                if row[i] is None or row[i]=="":
+                    result_dct[k] = None
+                else:
+                    result_dct[k] = row[i]
+            elif "list" in str(t):
+                if row[i] is None:
+                    #print tmp_id, 'none'
+                    tmp_set.add(tmp_val)
+                elif row[i] == '[null]':
+                    pass
+                else:
+                    val = row[i].replace('[','').replace(']','')
+                    val = val.replace('"','')
+                    l = []
+                    for itm in val.split(','):
+                        l.append(itm)
+                    result_dct[k] = l
+            elif str(t) == '16': # boolean
+                if row[i] == 1 or row[i] == True:
+                    result_dct[k] = True
+                elif row[i] is not None:
+                    result_dct[k] = False
+                else: result_dct[k] = None
+            else:
+                if row[i] is None or row[i]=="":
+                    result_dct[k] = None
+                else:
+                    result_dct[k] = row[i]
+        except(KeyError, IndexError) as e:
+            print 'Error in dictionary call: {0} for index {1}'.format(e,i)
+        i += 1
+
+    return result_dct
+
 def _defaultencode(o):
     if isinstance(o, Decimal):
         return str(o)   

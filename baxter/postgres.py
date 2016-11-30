@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 import psycopg2
+import json
 from files import loop_csv_file
 from files import get_schema_file
 from files import loop_delimited_file
 from files import loop_json_file
-
+from toolbox import process_postgres_data_row
+from toolbox import _defaultencode
 
 def connect(server, database, username, password):
     """Build connection to Postgres
@@ -254,56 +256,57 @@ def get_schema_file(schema_csv):
 #     return cursor
 
 
-# def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=None):
-#     """Takes a cursor and creates JSON file with the data 
-#     and a schema file for loading to other data systems.
+def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=None):
+    """Takes a cursor and creates JSON file with the data
+    and a schema file for loading to other data systems.
 
-#     Args:
-#         cursor: cursor object with data to extract to file
-#         dest_file: string, path and file name to save data
+    Args:
+        cursor: cursor object with data to extract to file
+        dest_file: string, path and file name to save data
 
-#     Returns:
-#         None
-#     """
-#     if source_schema_file is None:
-#         schema = []
-#         for i in cursor.description:
-#             schema.append([i[0],str(i[1])])
-#     else:
-#         from psdata_files import get_schema_file
-#         schema = get_schema_file(source_schema_file)
+    Returns:
+        None
+    """
+    if source_schema_file is None:
+        schema = []
+        for i in cursor.description:
+            schema.append([i[0],str(i[1])])
+    else:
+        schema = get_schema_file(source_schema_file)
 
-#     if dest_schema_file is not None:
-#         with open(dest_schema_file,'wb') as schemafile:
-#             for row in schema:
-#                 try:
-#                     col = row[0]
-#                     if 'date' in row[1]:
-#                         datatype = 'timestamp'
-#                     elif 'list' in row[1]:
-#                         datatype = 'list'
-#                     elif 'int' in row[1] or 'long' in row[1]:
-#                         datatype = 'integer'
-#                     elif 'float' in row[1]:
-#                         datatype = 'float'
-#                     elif 'bool' in row[1]:
-#                         datatype = 'boolean'
-#                     elif 'str' in row[1]:
-#                         datatype = 'string'
-#                     else:
-#                         datatype = 'string'
-#                     schemafile.write("%s\n" % (col + ',' + datatype))
-#                 except Exception as e:
-#                     print "Exception on row ", row
-#                     print e
-#     with open(dest_file,'wb') as outfile:
-#         for row in cursor:
-#             try:
-#                 result_dct = process_data_row(row,schema)
-#                 outfile.write("%s\n" % json.dumps(result_dct, default=_defaultencode))
-#             except Exception as e:
-#                 print "Exception on row ", row
-#                 print e
+    if dest_schema_file is not None:
+        with open(dest_schema_file,'wb') as schemafile:
+            for row in schema:
+                try:
+                    col = row[0]
+                    if 'date' in row[1]:
+                        datatype = 'timestamp'
+                    elif 'list' in row[1]:
+                        datatype = 'list'
+                    elif 'int' in row[1] or 'long' in row[1]:
+                        datatype = 'integer'
+                    elif 'float' in row[1]:
+                        datatype = 'float'
+                    elif 'bool' in row[1]:
+                        datatype = 'boolean'
+                    elif 'str' in row[1]:
+                        datatype = 'string'
+                    else:
+                        datatype = 'string'
+                    schemafile.write("%s\n" % (col + ',' + datatype))
+                except Exception as e:
+                    print "Exception on row ", row
+                    print e
+    with open(dest_file,'wb') as outfile:
+        for row in cursor:
+            #try:
+            #print type(row[2])
+            result_dct = process_postgres_data_row(row,schema)
+            outfile.write("%s\n" % json.dumps(result_dct, default=_defaultencode))
+            #outfile.write("%s\n" % json.dumps(result_dct))
+            #except Exception as e:
+            #    print "Exception on row ", row
+            #    print e
 
 def load_csv_to_table(table ,schema_file ,csv_file, connection, skipfirstrow=1):
     """Takes csv file, schema file, with sql server connection params and inserts data to a specified table
