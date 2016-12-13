@@ -74,7 +74,6 @@ def process_postgres_data_row(row,schema_list):
     tmp_set = set()
     result_dct = {}
     i = 0
-    print schema_list
     for k,t in schema_list:
         if "list" in str(t):
             tmp_val = row[i]
@@ -91,7 +90,6 @@ def process_postgres_data_row(row,schema_list):
                     result_dct[k] = row[i]
             elif "list" in str(t):
                 if row[i] is None:
-                    #print tmp_id, 'none'
                     tmp_set.add(tmp_val)
                 elif row[i] == '[null]':
                     pass
