@@ -19,7 +19,9 @@ def mssql_connect(server, database, username, password):
     try:
         # Simba SQL Server ODBC Driver
         #ODBC Driver 11 for SQL Server
-        connect_string = 'DRIVER={ODBC Driver 11 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password
+        #connect_string = 'DRIVER={ODBC Driver 11 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password
+        connect_string = 'DRIVER={FreeTDS};SERVER=' + server.encode('utf-8') + ';PORT=1433;DATABASE=' + database.encode(
+            'utf-8') + ';UID=' + username.encode('utf-8') + ';PWD=' + password.encode('utf-8')
         connection = pyodbc.connect(connect_string)
     except (ValueError) as e:
         print "Error creating database connection", e
@@ -218,7 +220,7 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
         for i in cursor.description:
             schema.append([i[0],str(i[1])])
     else:
-        from psdata_files import get_schema_file
+        from files import get_schema_file
         schema = get_schema_file(source_schema_file)
 
     if dest_schema_file is not None:
@@ -261,8 +263,8 @@ def load_csv_to_table(table ,schema_file ,csv_file, server, database, config,cre
     Returns:
         None
     """    
-    from psdata_files import loop_csv_file
-    from psdata_files import get_schema_file
+    from files import loop_csv_file
+    from files import get_schema_file
 
     with open(cred_file,'rb') as cred:
         db_info = json.loads(cred.read())
