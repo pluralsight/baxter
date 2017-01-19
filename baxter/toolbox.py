@@ -38,7 +38,7 @@ def process_data_row(row,schema_list):
                 elif str(t) == "<type 'datetime.date'>":
                     result_dct[k] = str(row[i]) + " 00:00:00"
                 else:
-                    result_dct[k] = str(row[i])
+                    result_dct[k] = str(row[i]).split('.')[0]
             elif "list" in str(t):
                 if row[i] is None:
                     #print tmp_id, 'none'
