@@ -5,7 +5,7 @@ from toolbox import process_data_row
 from files import get_schema_file
 from toolbox import _defaultencode
 
-def mssql_connect(server, database, username, password):
+def connect(server, database, username, password):
     """Build pyodbc connection to SQL Server from file, assuming driver name is "ODBC Driver 11 for SQL Server"
 
         Args:
