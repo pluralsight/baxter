@@ -2,6 +2,7 @@
 import pyodbc
 import json
 from toolbox import process_data_row
+from files import get_schema_file
 from toolbox import _defaultencode
 
 def mssql_connect(server, database, username, password):
@@ -22,6 +23,7 @@ def mssql_connect(server, database, username, password):
         connection = pyodbc.connect(connect_string)
     except (ValueError) as e:
         print "Error creating database connection", e
+        raise e
 
     return connection
 
@@ -133,6 +135,45 @@ def truncate_sql_table(connection,table_name):
     return
 
 
+def create_table(connection, table_name, schema_file, index):  # courseTagDict
+    """Runs SQL statement and commits changes to database.
+
+        Args:
+            connection: pyodbc.connect() object, Connection to use when running Sql
+            table_name: string, Table name including db schema (ex: my_schema.my_table)
+            schema_file: string, Path to csv schema file with each row as col_name, data_type
+            index: string, Column name of index (can put multiple columns comma delimited if desired)
+        Returns:
+            cursor object, Results of the call to pyodb.connection().cursor().execute(query)
+    """
+    cursor = connection.cursor()
+    schema_list = get_schema_file(schema_file)
+
+    ddl = 'CREATE TABLE IF NOT EXISTS ' + table_name + '('
+    for col, dt in schema_list:
+        ddl = ddl + col + ' ' + dt + ', '
+    ddl = ddl[:-2] + ');'
+
+    try:
+        cursor.execute(ddl.encode('utf-8'))
+    except UnicodeDecodeError:
+        cursor.execute(ddl)
+
+    if index is not None:
+        idx_name = table_name + '_idx'
+        exists = run_sql(connection, "SELECT to_regclass('{0}')".format(idx_name))
+        if exists.fetchone()[0] != idx_name:
+            index_name = table_name.split('.')[-1] + '_idx'
+            ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(index_name, table_name, index)
+            try:
+                cursor.execute(ddl2.encode('utf-8'))
+            except UnicodeDecodeError:
+                cursor.execute(ddl2)
+
+    connection.commit()
+    return cursor
+
+
 def sql_get_schema(connection,query,include_extract_date = True):
     """Reads schema from database by running the provided query.  It's recommended to
     pass a query that is limited to 1 record to minimize the amount of rows accessed on 
@@ -217,7 +258,6 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
         for i in cursor.description:
             schema.append([i[0],str(i[1])])
     else:
-        from files import get_schema_file
         schema = get_schema_file(source_schema_file)
 
     if dest_schema_file is not None:
@@ -262,7 +302,7 @@ def load_csv_to_table(table ,schema_file ,csv_file, server, database, config,cre
     Returns:
         None
     """    
-    from files import loop_csv_file
+    from files import loop_csv_file, loop_delimited_file
     from files import get_schema_file
 
     with open(cred_file,'rb') as cred:
