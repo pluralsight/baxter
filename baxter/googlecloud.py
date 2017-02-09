@@ -450,7 +450,7 @@ def load_table(service, project_id, job_data):
     job_status_loop(project_id, jobCollection, insertResponse)
 
 
-def load_from_query(service, project_id, dataset_id, target_table, source_query, overwrite=False):
+def load_from_query(service, project_id, dataset_id, target_table, source_query, overwrite=False, use_legacy_sql=True):
     """
         Args:
             service: BigQuery service object that is authenticated.  Example: service = build('bigquery','v2', http=http)
@@ -488,6 +488,7 @@ def load_from_query(service, project_id, dataset_id, target_table, source_query,
                 'createDisposition': 'CREATE_IF_NEEDED',
             # [Optional] Specifies whether the job is allowed to create new tables. The following values are supported: CREATE_IF_NEEDED: If the table does not exist, BigQuery creates the table. CREATE_NEVER: The table must already exist. If it does not, a 'notFound' error is returned in the job result. The default value is CREATE_IF_NEEDED. Creation, truncation and append actions occur as one atomic update upon job completion.
                 'query': source_query,
+                'useLegacySql': use_legacy_sql,
             },
         },
     }

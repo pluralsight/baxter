@@ -76,6 +76,8 @@ def insert_list_to_db(connection,lst,tableName,batchsize=1000):
             for val in row:
                 if type(val) == int or val == 'null':
                     rowstr += str(val) +','
+                elif type(val) == bool:
+                    rowstr += str(val) + ','
                 else:
                     rowstr += "'" + str(val) + "',"
             insertvals = insertvals + rowstr[:-1] + ' UNION ALL '
@@ -87,6 +89,8 @@ def insert_list_to_db(connection,lst,tableName,batchsize=1000):
             for val in row:
                     if type(val) == int or val == 'null':
                         rowstr += str(val) +','
+                    elif type(val) == bool:
+                        rowstr += str(val) + ','
                     else:
                         rowstr += "'" + str(val) + "',"
             insertvals = insertvals + rowstr[:-1] + ' UNION ALL '
@@ -398,8 +402,13 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
                 load_list.append(str(val)[:19])
             elif 'timestamp' in schema_list[j][1]:
                 load_list.append(val[:19])
+            elif 'bool' in schema_list[j][1]:
+                if val == 'false':
+                    load_list.append(False)
+                else:
+                    load_list.append(True)
             else:
-                load_list.append(str(val))
+                load_list.append(str(val).replace("'","''"))
         insert_list.append(load_list)
 
     insert_list_to_db(connection, insert_list, table,100)

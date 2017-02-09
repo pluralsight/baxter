@@ -1,9 +1,4 @@
 #!/usr/bin/env python
-""""
-**********DEPRECATED************************
-** User postgres or mssql modules instead **
-********************************************
-"""
 import pyodbc
 import json
 from toolbox import process_data_row
@@ -22,9 +17,6 @@ def mssql_connect(server, database, username, password):
             pyodbc connection object
     """
     try:
-        # Simba SQL Server ODBC Driver
-        #ODBC Driver 11 for SQL Server
-        #connect_string = 'DRIVER={ODBC Driver 11 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password
         connect_string = 'DRIVER={FreeTDS};SERVER=' + server.encode('utf-8') + ';PORT=1433;DATABASE=' + database.encode(
             'utf-8') + ';UID=' + username.encode('utf-8') + ';PWD=' + password.encode('utf-8')
         connection = pyodbc.connect(connect_string)
