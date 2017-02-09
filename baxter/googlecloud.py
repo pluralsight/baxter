@@ -40,14 +40,19 @@ def gcloud_connect(service_account, client_secret_file, scope):
         Returns:
             Authorized HTTP object, result of running SignedJwtAssertionCredentials.authorize()
     """
-    with open(client_secret_file, 'rb') as f:
-        # f = file(client_secret_file, 'rb')
-        key = f.read()
+    #with open(client_secret_file, 'rb') as f:
+    #    # f = file(client_secret_file, 'rb')
+    #    key = f.read()
 
-    credentials = ServiceAccountCredentials.from_p12_keyfile(
+    try:
+        credentials = ServiceAccountCredentials.from_p12_keyfile(
         service_account,
         client_secret_file,
         scopes=scope)
+    except Exception:  #NotImplementedError
+        credentials = ServiceAccountCredentials.from_json_keyfile_name(
+            client_secret_file,
+            scopes=scope)
 
     http = httplib2.Http()
     http = credentials.authorize(http)
