@@ -2,7 +2,7 @@
 import pyodbc
 import json
 from toolbox import process_data_row
-from files import get_schema_file
+from files import (get_schema_file, loop_delimited_file)
 from toolbox import _defaultencode
 
 def connect(server, database, username, password):
@@ -149,7 +149,8 @@ def create_table(connection, table_name, schema_file, index):  # courseTagDict
     cursor = connection.cursor()
     schema_list = get_schema_file(schema_file)
 
-    ddl = 'CREATE TABLE IF NOT EXISTS ' + table_name + '('
+    ddl = """IF NOT EXISTS ( SELECT [name] FROM sys.tables WHERE [name] = '{0}' )'
+        CREATE TABLE {0} (""".format(table_name)
     for col, dt in schema_list:
         ddl = ddl + col + ' ' + dt + ', '
     ddl = ddl[:-2] + ');'
@@ -321,9 +322,33 @@ def load_csv_to_table(table ,schema_file ,csv_file, server, database, config,cre
     if skipfirstrow == 1:
         next(data_list)
 
-    process_datarow_to_list(data_list,schema_list,connection,table)
+    insert_datarows_to_table(data_list, schema_list, connection, table)
 
-def process_datarow_to_list(data_list, schema_list, connection, table):
+
+def load_delimited_file_to_table(connection, table , source_file, schema_file, skipfirstrow=1, delimiter=','):
+    """Takes delimited file name, schema file, and db connection and inserts data to a specified table
+
+    Args:
+        table: table name where csv data will be written
+        schema_file: schema file that has all column names and data type names
+        csv_file: data being loaded
+        server: sql server host name
+        config: which configuration name to pull username and password credentials
+        cred_file: location of db login config file
+        skipfirstrow(optional): if 1 then skip the first row of data (exclude headers)
+
+    Returns:
+        None
+    """
+    data_list = loop_delimited_file(source_file,delimiter=delimiter)
+    schema_list = get_schema_file(schema_file)
+    #skips the first value of data_list which is the header
+    data_list = iter(data_list)
+    if skipfirstrow == 1:
+        next(data_list)
+    insert_datarows_to_table(data_list,schema_list,connection,table)
+
+def insert_datarows_to_table(data_list, schema_list, connection, table):
     """gets a data list and converts it to the correct data type for inserts then inserts data to a table
 
     Args:
