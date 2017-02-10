@@ -149,7 +149,7 @@ def create_table(connection, table_name, schema_file, index):  # courseTagDict
     cursor = connection.cursor()
     schema_list = get_schema_file(schema_file)
 
-    ddl = """IF NOT EXISTS ( SELECT [name] FROM sys.tables WHERE [name] = '{0}' )'
+    ddl = """IF NOT EXISTS ( SELECT [name] FROM sys.tables WHERE [name] = '{0}' )
         CREATE TABLE {0} (""".format(table_name)
     for col, dt in schema_list:
         ddl = ddl + col + ' ' + dt + ', '
