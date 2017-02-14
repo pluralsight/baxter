@@ -49,7 +49,7 @@ def gcloud_connect(service_account, client_secret_file, scope):
         service_account,
         client_secret_file,
         scopes=scope)
-    except Exception:  #NotImplementedError
+    except NotImplementedError:
         credentials = ServiceAccountCredentials.from_json_keyfile_name(
             client_secret_file,
             scopes=scope)
