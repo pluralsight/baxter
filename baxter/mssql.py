@@ -162,7 +162,8 @@ def create_table(connection, table_name, schema_file, index):  # courseTagDict
 
     if index is not None:
         idx_name = table_name + '_idx'
-        exists = run_sql(connection, "SELECT to_regclass('{0}')".format(idx_name))
+        exists = run_sql(connection, "SELECT * FROM sys.indexes where name = '{0}' and object_id = OBJECT_ID('{1}')"
+                         .format(idx_name, table_name))
         if exists.fetchone()[0] != idx_name:
             index_name = table_name.split('.')[-1] + '_idx'
             ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(index_name, table_name, index)
@@ -370,7 +371,7 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
             elif 'date' in schema_list[j][1]:
                 load_list.append(str(val)[:19])
             else:
-                load_list.append(str(val))
+                load_list.append(str(val).replace("'","''"))
         insert_list.append(load_list)
 
     insert_list_to_sql_batch(connection, insert_list, table,100)
