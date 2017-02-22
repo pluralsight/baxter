@@ -7,6 +7,8 @@ from files import loop_delimited_file
 from files import loop_json_file
 from toolbox import process_postgres_data_row
 from toolbox import _defaultencode
+import logging
+log = logging.getLogger(__name__)
 
 def connect(server, database, username, password):
     """Build connection to Postgres
@@ -281,34 +283,35 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
     if dest_schema_file is not None:
         with open(dest_schema_file,'wb') as schemafile:
             for row in schema:
-                #try:
-                col = row[0]
-                if 'date' in row[1]:
-                    datatype = 'timestamp'
-                elif 'list' in row[1]:
-                    datatype = 'list'
-                elif 'int' in row[1] or 'long' in row[1]:
-                    datatype = 'integer'
-                elif 'float' in row[1]:
-                    datatype = 'float'
-                elif 'bool' in row[1]:
-                    datatype = 'boolean'
-                elif 'str' in row[1]:
-                    datatype = 'string'
-                else:
-                    datatype = 'string'
-                schemafile.write("%s\n" % (col + ',' + datatype))
-                #except Exception as e:
-                #    print "Exception on row ", row
-                 #   print e
+                try:
+                    col = row[0]
+                    if 'date' in row[1]:
+                        datatype = 'timestamp'
+                    elif 'list' in row[1]:
+                        datatype = 'list'
+                    elif 'int' in row[1] or 'long' in row[1]:
+                        datatype = 'integer'
+                    elif 'float' in row[1]:
+                        datatype = 'float'
+                    elif 'bool' in row[1]:
+                        datatype = 'boolean'
+                    elif 'str' in row[1]:
+                        datatype = 'string'
+                    else:
+                        datatype = 'string'
+                    schemafile.write("%s\n" % (col + ',' + datatype))
+                except Exception as e:
+                   log.error("Exception on row ", row)
+                   raise e
     with open(dest_file,'wb') as outfile:
         for row in cursor:
-            #try:
-            result_dct = process_postgres_data_row(row,schema)
-            outfile.write("%s\n" % json.dumps(result_dct, default=_defaultencode))
-            #except Exception as e:
-            #    print "Exception on row ", row
-            #    print e
+            try:
+                result_dct = process_postgres_data_row(row,schema)
+                outfile.write("%s\n" % json.dumps(result_dct, default=_defaultencode))
+            except Exception as e:
+               log.error("Exception on row ", row)
+               raise e
+
 
 def load_csv_to_table(table ,schema_file ,csv_file, connection, skipfirstrow=1):
     """Takes csv file, schema file, with sql server connection params and inserts data to a specified table

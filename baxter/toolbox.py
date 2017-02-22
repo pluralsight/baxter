@@ -2,6 +2,8 @@
 import json
 from decimal import Decimal
 import requests
+import logging
+log = logging.getLogger(__name__)
 
 def data_records_to_json(data_list,schema_list,dest_file):
     with open(dest_file,'wb') as outfile:
@@ -64,7 +66,7 @@ def process_data_row(row,schema_list):
                 else:
                     result_dct[k] = row[i]
         except(KeyError, IndexError) as e:
-            print 'Error in dictionary call: {0} for index {1}'.format(e,i)
+            log.error('Error in dictionary call: {0} for index {1}'.format(e,i))
         i += 1
 
     return result_dct
@@ -112,7 +114,7 @@ def process_postgres_data_row(row,schema_list):
                 else:
                     result_dct[k] = row[i]
         except(KeyError, IndexError) as e:
-            print 'Error in dictionary call: {0} for index {1}'.format(e,i)
+            log.error('Error in dictionary call: {0} for index {1}'.format(e,i))
         i += 1
 
     return result_dct
@@ -128,7 +130,7 @@ def punt_baxter():
         import webbrowser
         webbrowser.open('https://giphy.com/gifs/will-ferrell-anchorman-jack-black-ikcJ56KAyhm8w/fullscreen')
     except Exception as e:
-        print "The man punted baxter! I'm in a glass case of emotion."
+        log.info("The man punted baxter! I'm in a glass case of emotion.")
 
 
 def send_alert_to_opsgenie(api_url, api_key, message, description):

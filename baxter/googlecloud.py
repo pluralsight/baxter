@@ -8,10 +8,8 @@ from apiclient.errors import HttpError
 from oauth2client.service_account import ServiceAccountCredentials
 from oauth2client.client import AccessTokenRefreshError
 from apiclient.http import (MediaFileUpload, MediaIoBaseDownload)
-
 import logging
-
-logging.basicConfig()  # included to avoid message when oauth2client tries to write to log
+log = logging.getLogger(__name__)
 
 # some of this code built on this project: https://code.google.com/p/google-bigquery-tools/source/browse/samples/python/appengine-bq-join
 # some of this code comes from the following link: https://developers.google.com/bigquery/bigquery-api-quickstart
@@ -87,14 +85,14 @@ def query_table(service, project_id, query):
         return result_list
 
     except HttpError as err:
-        print 'Error:', pprint.pprint(err.content)
+        log.error('Error:', pprint.pprint(err.content))
 
     except AccessTokenRefreshError:
-        print ("Credentials have been revoked or expired, please re-run"
+        log.error("Credentials have been revoked or expired, please re-run"
                "the application to re-authorize")
 
     except KeyError:
-        print "Key Error - no results"
+        log.error("Key Error - no results")
 
 
 def cloudstorage_upload(service, project_id, bucket, source_file, dest_file, show_status_messages=True):
@@ -119,7 +117,7 @@ def cloudstorage_upload(service, project_id, bucket, source_file, dest_file, sho
     assert bucket_name and object_name
 
     if show_status_messages:
-        print('Upload request for {0}'.format(source_file))
+        log.info('Upload request for {0}'.format(source_file))
     media = MediaFileUpload(filename, chunksize=CHUNKSIZE, resumable=True)
     if not media.mimetype():
         media = MediaFileUpload(filename, DEFAULT_MIMETYPE, resumable=True)
@@ -129,7 +127,7 @@ def cloudstorage_upload(service, project_id, bucket, source_file, dest_file, sho
     response = request.execute()
 
     if show_status_messages:
-        print('Upload complete')
+        log.info('Upload complete')
 
     return response
 
@@ -155,7 +153,7 @@ def cloudstorage_download(service, project_id, bucket, source_file, dest_file, s
     assert bucket_name and object_name
 
     if show_status_messages:
-        print('Download request for {0}'.format(source_file))
+        log.info('Download request for {0}'.format(source_file))
     # media = MediaFileUpload(filename, chunksize=CHUNKSIZE, resumable=True)
     # if not media.mimetype():
     #    media = MediaFileUpload(filename, DEFAULT_MIMETYPE, resumable=True)
@@ -182,18 +180,18 @@ def cloudstorage_download(service, project_id, bucket, source_file, dest_file, s
             # handle_progressless_iter(error, progressless_iters)
             if progressless_iters > NUM_RETRIES:
                 if show_status_messages:
-                    print('Failed to make progress for too many consecutive iterations.')
+                    log.warn('Failed to make progress for too many consecutive iterations.')
                 raise error
             sleeptime = random.random() * (2 ** progressless_iters)
             if show_status_messages:
-                print ('Caught exception (%s). Sleeping for %s seconds before retry #%d.'
+                log.warn('Caught exception (%s). Sleeping for %s seconds before retry #%d.'
                        % (str(error), sleeptime, progressless_iters))
             time.sleep(sleeptime)
         else:
             progressless_iters = 0
 
     if show_status_messages:
-        print('Download complete')
+        log.info('Download complete')
 
 
 def cloudstorage_delete(service, project_id, bucket, filename, show_status_messages=True):
@@ -213,14 +211,10 @@ def cloudstorage_delete(service, project_id, bucket, filename, show_status_messa
     object_name = filename
 
     if show_status_messages:
-        print('Delete request for {0}/{1}'.format(bucket_name, object_name))
+        log.info('Delete request for {0}/{1}'.format(bucket_name, object_name))
 
     obj = service.objects()
     result = obj.delete(bucket=bucket_name, object=object_name).execute()
-
-    # if show_status_messages:
-    # print result
-    # print('{0}/{1} deleted'.format(bucket_name,object_name))
 
 
 def gsutil_download(service, source_path, source_file, dest_path, parallel=True):
@@ -235,12 +229,12 @@ def gsutil_download(service, source_path, source_file, dest_path, parallel=True)
             None
     """
     from subprocess import call
-    # strftime("%Y_%m_%d")
     if parallel:
         parallel_param = '-m'
     else:
         parallel_param = ''
-    call(["gsutil", parallel_param, "cp", source_path + source_file, dest_path])
+    log.info("Running gsutil command:","gsutil", parallel_param, "cp", source_path + source_file, dest_path )
+    call(["gsutil", parallel_param, "ls"], shell=False)
 
 
 def gsutil_delete(service, path, parallel=True):
@@ -254,7 +248,6 @@ def gsutil_delete(service, path, parallel=True):
             None
     """
     from subprocess import call
-    # strftime("%Y_%m_%d")
     if parallel:
         parallel_param = '-m'
     else:
@@ -298,16 +291,16 @@ def job_status_loop(project_id, jobCollection, insertResponse, waitTimeSecs=10):
                                 jobId=insertResponse['jobReference']['jobId']).execute()
 
         if 'DONE' == job['status']['state']:
-            print 'Done Loading!'
+            log.info('Done Loading!')
             if 'errorResult' in job['status']:
-                print 'Error loading table: ', pprint.pprint(job)
+                log.error('Error loading table: ', pprint.pprint(job))
             return
 
-        print 'Waiting for loading to complete...'
+        log.info('Waiting for loading to complete...')
         time.sleep(waitTimeSecs)
 
         if 'errorResult' in job['status']:
-            print 'Error loading table: ', pprint.pprint(job)
+            log.error('Error loading table: ', pprint.pprint(job))
             return
 
 
@@ -499,7 +492,7 @@ def load_from_query(service, project_id, dataset_id, target_table, source_query,
     }
 
     response = job_collection.insert(projectId=project_id, body=job_data).execute()
-    # print response
+    log.debug(response)
     job_status_loop(project_id, job_collection, response)
 
 
@@ -591,5 +584,5 @@ def export_table(service, project_id, dataset_id, source_table, destination_uris
     }
 
     response = job_collection.insert(projectId=project_id, body=job_data).execute()
-    # print response
+    log.debug(response)
     job_status_loop(project_id, job_collection, response)

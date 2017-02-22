@@ -4,6 +4,8 @@ import json
 from toolbox import process_data_row
 from files import (get_schema_file, loop_delimited_file)
 from toolbox import _defaultencode
+import logging
+log = logging.getLogger(__name__)
 
 def connect(server, database, username, password):
     """Build pyodbc connection to SQL Server from file, assuming driver name is "ODBC Driver 11 for SQL Server"
@@ -22,7 +24,7 @@ def connect(server, database, username, password):
             'utf-8') + ';UID=' + username.encode('utf-8') + ';PWD=' + password.encode('utf-8')
         connection = pyodbc.connect(connect_string)
     except (ValueError) as e:
-        print "Error creating database connection", e
+        log.error("Error creating database connection", e)
         raise e
 
     return connection
@@ -52,7 +54,6 @@ def insert_list_to_sql(connection,lst,tableName):
         query = "INSERT INTO {0} VALUES {1}".format(tableName, valstring)
 
         c = run_sql(connection,query)
-        #print type(c)
     return
 
 def insert_list_to_sql_batch(connection,lst,tableName,batchsize=1000):
@@ -135,45 +136,80 @@ def truncate_sql_table(connection,table_name):
     return
 
 
-def create_table(connection, table_name, schema_file, index):  # courseTagDict
-    """Runs SQL statement and commits changes to database.
+def create_table(connection, table_name, schema_file):
+    """Create table.
 
         Args:
             connection: pyodbc.connect() object, Connection to use when running Sql
             table_name: string, Table name including db schema (ex: my_schema.my_table)
             schema_file: string, Path to csv schema file with each row as col_name, data_type
-            index: string, Column name of index (can put multiple columns comma delimited if desired)
         Returns:
             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
     """
     cursor = connection.cursor()
     schema_list = get_schema_file(schema_file)
 
-    ddl = """IF NOT EXISTS ( SELECT [name] FROM sys.tables WHERE [name] = '{0}' )
+    table_split = table_name.split('.')
+    table = table_split[-1]
+    use_db = ""
+    if len(table_split) > 1:
+        use_db = "USE {0}; ".format(table_split[0])
+    ddl = use_db + """IF NOT EXISTS ( SELECT [name] FROM sys.tables WHERE [name] = '{0}' )
         CREATE TABLE {0} (""".format(table_name)
     for col, dt in schema_list:
-        ddl = ddl + col + ' ' + dt + ', '
+        ddl = ddl + col + ' ' + dt + ' NULL, '
     ddl = ddl[:-2] + ');'
 
     try:
+        log.debug(ddl)
         cursor.execute(ddl.encode('utf-8'))
     except UnicodeDecodeError:
         cursor.execute(ddl)
+    return cursor
 
+def create_index(connection, table_name, index):
+    """Create index.
+
+            Args:
+                connection: pyodbc.connect() object, Connection to use when running Sql
+                table_name: string, Table name including db schema (ex: my_schema.my_table)
+                index: string, Column name of index (can put multiple columns comma delimited if desired)
+            Returns:
+                cursor object, Results of the call to pyodb.connection().cursor().execute(query)
+        """
+    cursor = connection.cursor()
+    table_split = table_name.split('.')
+    table = table_split[-1]
+    if len(table_split) > 1:
+        use_db = "USE {0}; ".format(table_split[0])
+        run_sql(connection, use_db)
     if index is not None:
-        idx_name = table_name + '_idx'
-        exists = run_sql(connection, "SELECT * FROM sys.indexes where name = '{0}' and object_id = OBJECT_ID('{1}')"
-                         .format(idx_name, table_name))
-        if exists.fetchone()[0] != idx_name:
-            index_name = table_name.split('.')[-1] + '_idx'
-            ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(index_name, table_name, index)
+        idx_name = table + '_idx'
+        sql = "SELECT name FROM sys.indexes where name = '{0}' and object_id = OBJECT_ID('{1}')".format(idx_name, table)
+        log.debug("SQL to run: " + sql)
+        try:
+            exists = sql_get_query_data(connection, sql)
+            val = exists.fetchone()[0]
+            if val != idx_name:
+                ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(idx_name, table_name, index)
+                try:
+                    cursor.execute(ddl2.encode('utf-8'))
+                    connection.commit()
+                except UnicodeDecodeError:
+                    cursor.execute(ddl2)
+                    connection.commit()
+        except TypeError:
+            log.info("Index does not exist, will attempt to create it")
+            ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(idx_name, table_name, index)
             try:
                 cursor.execute(ddl2.encode('utf-8'))
+                connection.commit()
             except UnicodeDecodeError:
                 cursor.execute(ddl2)
+                connection.commit()
 
-    connection.commit()
     return cursor
+
 
 
 def sql_get_schema(connection,query,include_extract_date = True):
@@ -221,7 +257,7 @@ def sql_get_table_data(connection, table, schema='dbo', include_extract_date = T
     if include_extract_date:
         extract_date = ", getdate() as ExtractDate"
     query = 'select * ' + extract_date + ' from ' + schema + '.[' + table + '] with (nolock)'
-    print query
+    log.info(query)
     cursor=connection.cursor()
     cursor.execute(query.encode('utf-8'))
 
@@ -364,7 +400,7 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
         load_list = []
         for j, val in enumerate(i):
             if 'int' in schema_list[j][1]:
-                if val == 'null':
+                if val == 'null' or val == '':
                     load_list.append('null')
                 else:
                     load_list.append(int(val))

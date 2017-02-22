@@ -3,7 +3,7 @@ import json
 import csv
 
 import logging
-logging.basicConfig() #included to avoid message when oauth2client tries to write to log
+logging.getLogger(__name__)
 
 
 def loop_csv_file(source_csv):
@@ -127,7 +127,7 @@ se)
     if source_gzipped:
         gzip_decompress(source_file)
         source_file = source_file.replace('.gz','')
-        #print 'File unzipped'
+        log.info('File unzipped')
 
     # Build list of dictionaries (one list record per data row)
     data_records_list = []
@@ -181,7 +181,7 @@ se)
     if source_gzipped:
         gzip_decompress(source_file)
         source_file = source_file.replace('.gz','')
-        #print 'File unzipped'
+        log.info('File unzipped')
 
     # Build list of dictionaries (one list record per data row)
     data_records_list = []
