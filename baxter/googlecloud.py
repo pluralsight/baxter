@@ -234,7 +234,7 @@ def gsutil_download(service, source_path, source_file, dest_path, parallel=True)
     else:
         parallel_param = ''
     log.info("Running gsutil command:","gsutil", parallel_param, "cp", source_path + source_file, dest_path )
-    call(["gsutil", parallel_param, "ls"], shell=False)
+    call(["gsutil", parallel_param, "cp", source_path + source_file, dest_path], shell=False)
 
 
 def gsutil_delete(service, path, parallel=True):
