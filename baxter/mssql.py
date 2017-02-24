@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-""""
-**********DEPRECATED************************
-** User postgres or mssql modules instead **
-********************************************
-"""
 import pyodbc
 import json
 from toolbox import process_data_row
+from files import (get_schema_file, loop_delimited_file)
 from toolbox import _defaultencode
+import logging
+log = logging.getLogger(__name__)
 
-def mssql_connect(server, database, username, password):
+def connect(server, database, username, password):
     """Build pyodbc connection to SQL Server from file, assuming driver name is "ODBC Driver 11 for SQL Server"
 
         Args:
@@ -22,14 +20,12 @@ def mssql_connect(server, database, username, password):
             pyodbc connection object
     """
     try:
-        # Simba SQL Server ODBC Driver
-        #ODBC Driver 11 for SQL Server
-        #connect_string = 'DRIVER={ODBC Driver 11 for SQL Server};SERVER=' + server + ';DATABASE=' + database + ';UID=' + username + ';PWD=' + password
         connect_string = 'DRIVER={FreeTDS};SERVER=' + server.encode('utf-8') + ';PORT=1433;DATABASE=' + database.encode(
             'utf-8') + ';UID=' + username.encode('utf-8') + ';PWD=' + password.encode('utf-8')
         connection = pyodbc.connect(connect_string)
     except (ValueError) as e:
-        print "Error creating database connection", e
+        log.error("Error creating database connection", e)
+        raise e
 
     return connection
 
@@ -58,7 +54,6 @@ def insert_list_to_sql(connection,lst,tableName):
         query = "INSERT INTO {0} VALUES {1}".format(tableName, valstring)
 
         c = run_sql(connection,query)
-        #print type(c)
     return
 
 def insert_list_to_sql_batch(connection,lst,tableName,batchsize=1000):
@@ -141,6 +136,82 @@ def truncate_sql_table(connection,table_name):
     return
 
 
+def create_table(connection, table_name, schema_file):
+    """Create table.
+
+        Args:
+            connection: pyodbc.connect() object, Connection to use when running Sql
+            table_name: string, Table name including db schema (ex: my_schema.my_table)
+            schema_file: string, Path to csv schema file with each row as col_name, data_type
+        Returns:
+            cursor object, Results of the call to pyodb.connection().cursor().execute(query)
+    """
+    cursor = connection.cursor()
+    schema_list = get_schema_file(schema_file)
+
+    table_split = table_name.split('.')
+    table = table_split[-1]
+    use_db = ""
+    if len(table_split) > 1:
+        use_db = "USE {0}; ".format(table_split[0])
+    ddl = use_db + """IF NOT EXISTS ( SELECT [name] FROM sys.tables WHERE [name] = '{0}' )
+        CREATE TABLE {0} (""".format(table_name)
+    for col, dt in schema_list:
+        ddl = ddl + col + ' ' + dt + ' NULL, '
+    ddl = ddl[:-2] + ');'
+
+    try:
+        log.debug(ddl)
+        cursor.execute(ddl.encode('utf-8'))
+    except UnicodeDecodeError:
+        cursor.execute(ddl)
+    return cursor
+
+def create_index(connection, table_name, index):
+    """Create index.
+
+            Args:
+                connection: pyodbc.connect() object, Connection to use when running Sql
+                table_name: string, Table name including db schema (ex: my_schema.my_table)
+                index: string, Column name of index (can put multiple columns comma delimited if desired)
+            Returns:
+                cursor object, Results of the call to pyodb.connection().cursor().execute(query)
+        """
+    cursor = connection.cursor()
+    table_split = table_name.split('.')
+    table = table_split[-1]
+    if len(table_split) > 1:
+        use_db = "USE {0}; ".format(table_split[0])
+        run_sql(connection, use_db)
+    if index is not None:
+        idx_name = table + '_idx'
+        sql = "SELECT name FROM sys.indexes where name = '{0}' and object_id = OBJECT_ID('{1}')".format(idx_name, table)
+        log.debug("SQL to run: " + sql)
+        try:
+            exists = sql_get_query_data(connection, sql)
+            val = exists.fetchone()[0]
+            if val != idx_name:
+                ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(idx_name, table_name, index)
+                try:
+                    cursor.execute(ddl2.encode('utf-8'))
+                    connection.commit()
+                except UnicodeDecodeError:
+                    cursor.execute(ddl2)
+                    connection.commit()
+        except TypeError:
+            log.info("Index does not exist, will attempt to create it")
+            ddl2 = 'CREATE INDEX {0} ON {1}({2});'.format(idx_name, table_name, index)
+            try:
+                cursor.execute(ddl2.encode('utf-8'))
+                connection.commit()
+            except UnicodeDecodeError:
+                cursor.execute(ddl2)
+                connection.commit()
+
+    return cursor
+
+
+
 def sql_get_schema(connection,query,include_extract_date = True):
     """Reads schema from database by running the provided query.  It's recommended to
     pass a query that is limited to 1 record to minimize the amount of rows accessed on 
@@ -186,7 +257,7 @@ def sql_get_table_data(connection, table, schema='dbo', include_extract_date = T
     if include_extract_date:
         extract_date = ", getdate() as ExtractDate"
     query = 'select * ' + extract_date + ' from ' + schema + '.[' + table + '] with (nolock)'
-    print query
+    log.info(query)
     cursor=connection.cursor()
     cursor.execute(query.encode('utf-8'))
 
@@ -225,7 +296,6 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
         for i in cursor.description:
             schema.append([i[0],str(i[1])])
     else:
-        from files import get_schema_file
         schema = get_schema_file(source_schema_file)
 
     if dest_schema_file is not None:
@@ -270,7 +340,7 @@ def load_csv_to_table(table ,schema_file ,csv_file, server, database, config,cre
     Returns:
         None
     """    
-    from files import loop_csv_file
+    from files import loop_csv_file, loop_delimited_file
     from files import get_schema_file
 
     with open(cred_file,'rb') as cred:
@@ -289,9 +359,33 @@ def load_csv_to_table(table ,schema_file ,csv_file, server, database, config,cre
     if skipfirstrow == 1:
         next(data_list)
 
-    process_datarow_to_list(data_list,schema_list,connection,table)
+    insert_datarows_to_table(data_list, schema_list, connection, table)
 
-def process_datarow_to_list(data_list, schema_list, connection, table):
+
+def load_delimited_file_to_table(connection, table , source_file, schema_file, skipfirstrow=1, delimiter=','):
+    """Takes delimited file name, schema file, and db connection and inserts data to a specified table
+
+    Args:
+        table: table name where csv data will be written
+        schema_file: schema file that has all column names and data type names
+        csv_file: data being loaded
+        server: sql server host name
+        config: which configuration name to pull username and password credentials
+        cred_file: location of db login config file
+        skipfirstrow(optional): if 1 then skip the first row of data (exclude headers)
+
+    Returns:
+        None
+    """
+    data_list = loop_delimited_file(source_file,delimiter=delimiter)
+    schema_list = get_schema_file(schema_file)
+    #skips the first value of data_list which is the header
+    data_list = iter(data_list)
+    if skipfirstrow == 1:
+        next(data_list)
+    insert_datarows_to_table(data_list,schema_list,connection,table)
+
+def insert_datarows_to_table(data_list, schema_list, connection, table):
     """gets a data list and converts it to the correct data type for inserts then inserts data to a table
 
     Args:
@@ -306,14 +400,14 @@ def process_datarow_to_list(data_list, schema_list, connection, table):
         load_list = []
         for j, val in enumerate(i):
             if 'int' in schema_list[j][1]:
-                if val == 'null':
+                if val == 'null' or val == '':
                     load_list.append('null')
                 else:
                     load_list.append(int(val))
             elif 'date' in schema_list[j][1]:
                 load_list.append(str(val)[:19])
             else:
-                load_list.append(str(val))
+                load_list.append(str(val).replace("'","''"))
         insert_list.append(load_list)
 
     insert_list_to_sql_batch(connection, insert_list, table,100)
