@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 import psycopg2
 import json
-from files import loop_csv_file
-from files import get_schema_file
-from files import loop_delimited_file
-from files import loop_json_file
-from toolbox import process_postgres_data_row
-from toolbox import _defaultencode
+from baxter.files import loop_csv_file, get_schema_file, loop_delimited_file, loop_json_file
+from baxter.toolbox import  _defaultencode, process_postgres_data_row
+from datetime import datetime
 import logging
 log = logging.getLogger(__name__)
 
@@ -18,15 +15,17 @@ def connect(server, database, username, password):
             database: string, database name
             username: string, useranme for the database
             password: string, password for the database
-    
+
         Returns:
             psycopg2 connection object
     """
-    
-    connection = psycopg2.connect("dbname='{0}' host='{1}' user='{2}' password='{3}'".format(database, server, username, password))
+
+    connection = psycopg2.connect(
+        "dbname='{0}' host='{1}' user='{2}' password='{3}'".format(database, server, username, password))
     return connection
 
-def insert_row_to_db(connection,lst,tableName):
+
+def insert_row_to_db(connection, lst, tableName):
     """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
         Args:
             list: list, Values to insert to table
@@ -49,15 +48,71 @@ def insert_row_to_db(connection,lst,tableName):
             else:
                 valstring += str(colval) + ','
         except TypeError:
-            valstring += str(colval) +','
-    valstring = valstring[0:-1] + ')' #remove trailing comma
+            valstring += str(colval) + ','
+    valstring = valstring[0:-1] + ')'  # remove trailing comma
     query = "INSERT INTO {0} VALUES {1}".format(tableName, valstring)
 
-    run_sql(connection,query)
+    run_sql(connection, query)
     return
 
+
 # formerly named insert_list_to_sql_batch
-def insert_list_to_db(connection,lst,tableName,batchsize=1000):
+# def insert_list_to_db(connection, lst, tableName, batchsize=1000):
+#     """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
+#         Args:
+#             list: list, Values to insert to table
+#             tableName: string, Fully qualified SQL table name
+#             batchsize: specifies what size you'd want the batches to run as
+#             connection: sql server connection
+#
+#         Returns:
+#             None
+#     """
+#     insertvals = ''
+#     batchcnt = 0
+#     lstcnt = 0
+#     lstsize = len(lst)
+#     rowstr = "SELECT "
+#     for row in lst:
+#         if batchcnt == batchsize or (lstcnt + 1) == lstsize:
+#             for val in row:
+#                 print type(val)
+#                 if type(val) == int or val == 'null':
+#                     rowstr += str(val) + ","
+#                 elif type(val) == bool:
+#                     print val
+#                     rowstr += str(val) + ","
+#                 elif type(val) == datetime:
+#                     print val
+#                     rowstr += "'" + str(val) + "',"
+#                 else:
+#                     rowstr += "'" + str(val) + "',"
+#             insertvals = insertvals + rowstr[:-1] + " UNION ALL "
+#             print "INSERT INTO {0} {1}".format(tableName, insertvals[:-11])
+#             c = run_sql(connection, "INSERT INTO {0} {1}".format(tableName, insertvals[:-11]))
+#             insertvals = ''
+#             rowstr = "SELECT "
+#             batchcnt = 0
+#         else:
+#             for val in row:
+#                 if type(val) == int or val == 'null':
+#                     rowstr += str(val) + ','
+#                 elif type(val) == bool:
+#                     print val
+#                     rowstr += str(val) + ","
+#                 elif type(val) == datetime:
+#                     print val
+#                     rowstr += "'" + str(val) + "',"
+#                 else:
+#                     rowstr += "'" + str(val) + "',"
+#             insertvals = insertvals + rowstr[:-1] + " UNION ALL "
+#             rowstr = "SELECT "
+#             batchcnt += 1
+#             lstcnt += 1
+#
+#     return
+
+def insert_list_to_db(connection, lst, tableName, batchsize=1000):
     """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
         Args:
             list: list, Values to insert to table
@@ -67,53 +122,56 @@ def insert_list_to_db(connection,lst,tableName,batchsize=1000):
 
         Returns:
             None
-    """ 
+    """
     insertvals = ''
     batchcnt = 0
     lstcnt = 0
     lstsize = len(lst)
-    rowstr = 'SELECT '
+    #rowstr = "SELECT "
+    start = "INSERT INTO {0} VALUES ".format(tableName)
+
     for row in lst:
+        rowstr = ''
         if batchcnt == batchsize or (lstcnt + 1) == lstsize:
             for val in row:
-                if type(val) == int or val == 'null':
-                    rowstr += str(val) +','
+                if type(val) == int or type(val) == float or val == 'null':
+                    rowstr += str(val) + ","
                 elif type(val) == bool:
-                    rowstr += str(val) + ','
+                    rowstr += str(val) + ","
                 else:
                     rowstr += "'" + str(val) + "',"
-            insertvals = insertvals + rowstr[:-1] + ' UNION ALL '
-            c = run_sql(connection,"INSERT INTO {0} {1}".format(tableName, insertvals[:-11]))
+            insertvals = insertvals + '(' + rowstr[:-1] + "),"
+            log.debug(start + insertvals[:-1])
+            c = run_sql(connection, start + insertvals[:-1])
             insertvals = ''
-            rowstr = 'SELECT '
+            start = "INSERT INTO {0} VALUES ".format(tableName)
             batchcnt = 0
         else:
             for val in row:
-                    if type(val) == int or val == 'null':
-                        rowstr += str(val) +','
-                    elif type(val) == bool:
-                        rowstr += str(val) + ','
-                    else:
-                        rowstr += "'" + str(val) + "',"
-            insertvals = insertvals + rowstr[:-1] + ' UNION ALL '
-            rowstr = 'SELECT '
+                if type(val) == int or type(val) == float or val == 'null':
+                    rowstr += str(val) + ","
+                elif type(val) == bool:
+                    rowstr += str(val) + ","
+                else:
+                    rowstr += "'" + str(val) + "',"
+            insertvals = insertvals + '(' + rowstr[:-1] + "),"
             batchcnt += 1
             lstcnt += 1
 
     return
 
 
-def run_sql(connection,query): #courseTagDict
+def run_sql(connection, query):  # courseTagDict
     """Runs SQL statement and commits changes to database.
-        
+
         Args:
-            connection: pyodbc.connect() object, Connection to use when running Sql 
+            connection: pyodbc.connect() object, Connection to use when running Sql
             query: string, Valid query string
 
         Returns:
             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
-    """ 
-    cursor=connection.cursor()
+    """
+    cursor = connection.cursor()
     try:
         cursor.execute(query.encode('utf-8'))
     except UnicodeDecodeError:
@@ -125,14 +183,14 @@ def run_sql(connection,query): #courseTagDict
 
 # def truncate_sql_table(connection,table_name):
 #     """Runs truncate table SQL command and commits changes to database.
-        
+
 #         Args:
 #             connection: pyodbc.connect() object, Connection to use for truncate
 #             tableName: string, Fully qualified SQL table name (make sure this is the table you want to clear!)
 
 #         Returns:
 #             None
-#     """ 
+#     """
 #     sql = "truncate table " + table_name
 #     cursor=connection.cursor()
 #     cursor.execute(sql.encode('utf-8'))
@@ -178,15 +236,16 @@ def create_table(connection, table_name, schema_file, index):  # courseTagDict
     connection.commit()
     return cursor
 
+
 # def sql_get_schema(connection,query,include_extract_date = True):
 #     """Reads schema from database by running the provided query.  It's recommended to
-#     pass a query that is limited to 1 record to minimize the amount of rows accessed on 
+#     pass a query that is limited to 1 record to minimize the amount of rows accessed on
 #     the server.
 
 #         Args:
-#             connection: pyodbc.connect() object, Connection to use when running Sql 
+#             connection: pyodbc.connect() object, Connection to use when running Sql
 #             query: string, Valid query string
-#             include_extract_date: boolean, defaults to True to add current timestamp field 
+#             include_extract_date: boolean, defaults to True to add current timestamp field
 #                     'ExtractDate' to results
 
 #         Returns:
@@ -196,7 +255,7 @@ def create_table(connection, table_name, schema_file, index):  # courseTagDict
 
 #     cursor = connection.cursor()
 #     cursor.execute(query)
-    
+
 #     schema_list = []
 #     #colList = []
 #     #typeList = []
@@ -218,23 +277,22 @@ def get_schema_file(schema_csv):
         list, Schema list of column and type
     """
     schema_raw = loop_delimited_file(schema_csv)
-    schema =[]
-    for column,datatype in schema_raw:
-        schema.append([column.strip(' '),datatype.strip(' ')])
+    schema = []
+    for column, datatype in schema_raw:
+        schema.append([column.strip(' '), datatype.strip(' ')])
     return schema
-
 
 
 # def sql_get_table_data(connection, table, schema='dbo', include_extract_date = True):
 #     """Runs SQL statement to get all records from the table (select *)
-        
+
 #         Args:
-#             connection: pyodbc.connect() object, Connection to use when selecting data 
+#             connection: pyodbc.connect() object, Connection to use when selecting data
 #             table: string, Valid table
 
 #         Returns:
 #             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
-#     """ 
+#     """
 #     extract_date = ""
 #     if include_extract_date:
 #         extract_date = ", getdate() as ExtractDate"
@@ -248,14 +306,14 @@ def get_schema_file(schema_csv):
 
 # def sql_get_query_data(connection, query):
 #     """Runs SQL statement to get results of query specified, returned and pyodbc cursor.
-        
+
 #         Args:
-#             connection: pyodbc.connect() object, Connection to use when selecting data 
+#             connection: pyodbc.connect() object, Connection to use when selecting data
 #             query: string, Valid select statement
 
 #         Returns:
 #             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
-#     """ 
+#     """
 #     cursor=connection.cursor()
 #     cursor.execute(query.encode('utf-8'))
 
@@ -276,12 +334,12 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
     if source_schema_file is None:
         schema = []
         for i in cursor.description:
-            schema.append([i[0],str(i[1])])
+            schema.append([i[0], str(i[1])])
     else:
         schema = get_schema_file(source_schema_file)
 
     if dest_schema_file is not None:
-        with open(dest_schema_file,'wb') as schemafile:
+        with open(dest_schema_file, 'wb') as schemafile:
             for row in schema:
                 try:
                     col = row[0]
@@ -301,19 +359,20 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
                         datatype = 'string'
                     schemafile.write("%s\n" % (col + ',' + datatype))
                 except Exception as e:
-                   log.error("Exception on row ", row)
-                   raise e
-    with open(dest_file,'wb') as outfile:
+                    log.error("Exception on row ", row)
+                    raise e
+    with open(dest_file, 'wb') as outfile:
         for row in cursor:
             try:
-                result_dct = process_postgres_data_row(row,schema)
+                result_dct = process_postgres_data_row(row, schema)
                 outfile.write("%s\n" % json.dumps(result_dct, default=_defaultencode))
+                # outfile.write("%s\n" % json.dumps(result_dct))
             except Exception as e:
-               log.error("Exception on row ", row)
-               raise e
+                log.error("Exception on row ", row)
+                raise e
 
 
-def load_csv_to_table(table ,schema_file ,csv_file, connection, skipfirstrow=1):
+def load_csv_to_table(table, schema_file, csv_file, connection, skipfirstrow=1):
     """Takes csv file, schema file, with sql server connection params and inserts data to a specified table
 
     Args:
@@ -327,18 +386,19 @@ def load_csv_to_table(table ,schema_file ,csv_file, connection, skipfirstrow=1):
 
     Returns:
         None
-    """    
+    """
     data_list = loop_csv_file(csv_file)
 
     schema_list = get_schema_file(schema_file)
-    #skips the first value of data_list which is the header
+    # skips the first value of data_list which is the header
     data_list = iter(data_list)
     if skipfirstrow == 1:
         next(data_list)
 
-    insert_datarows_to_table(data_list,schema_list,connection,table)
+    insert_datarows_to_table(data_list, schema_list, connection, table)
 
-def load_delimited_file_to_table(connection, table , source_file, schema_file, skipfirstrow=1, delimiter=','):
+
+def load_delimited_file_to_table(connection, table, source_file, schema_file, skipfirstrow=1, delimiter=','):
     """Takes delimited file name, schema file, and db connection and inserts data to a specified table
 
     Args:
@@ -353,15 +413,16 @@ def load_delimited_file_to_table(connection, table , source_file, schema_file, s
     Returns:
         None
     """
-    data_list = loop_delimited_file(source_file,delimiter=delimiter)
+    data_list = loop_delimited_file(source_file, delimiter=delimiter)
     schema_list = get_schema_file(schema_file)
-    #skips the first value of data_list which is the header
+    # skips the first value of data_list which is the header
     data_list = iter(data_list)
     if skipfirstrow == 1:
         next(data_list)
-    insert_datarows_to_table(data_list,schema_list,connection,table)
+    insert_datarows_to_table(data_list, schema_list, connection, table)
 
-def load_json_file_to_table(connection, table , source_file, schema_file):
+
+def load_json_file_to_table(connection, table, source_file, schema_file):
     """Takes delimited file name, schema file, and db connection and inserts data to a specified table
 
     Args:
@@ -378,8 +439,9 @@ def load_json_file_to_table(connection, table , source_file, schema_file):
     """
     data_list = loop_json_file(source_file)
     schema_list = get_schema_file(schema_file)
-    #data_list = iter(data_list)
-    insert_datarows_dct_to_table(data_list,schema_list,connection,table)
+    # data_list = iter(data_list)
+    insert_datarows_dct_to_table(data_list, schema_list, connection, table)
+
 
 # *formerly named process_datarow_to_list
 def insert_datarows_to_table(data_list, schema_list, connection, table):
@@ -392,29 +454,45 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
     Returns:
         None
     """
+    log.debug(schema_list)
     insert_list = []
     for i in data_list:
         load_list = []
         for j, val in enumerate(i):
-            if 'int' in schema_list[j][1]:
-                if val == 'null' or val == '':
-                    load_list.append('null')
+            try:
+                if 'int' in schema_list[j][1]:
+                    if val == 'null' or val == '':
+                        load_list.append('null')
+                    else:
+                        load_list.append(int(val))
+                elif 'float' in schema_list[j][1]:
+                    if val == 'null' or val == '':
+                        load_list.append('null')
+                    else:
+                        load_list.append(float(val))
+                elif 'date' in schema_list[j][1]:
+                    load_list.append(str(val)[:19])
+                elif 'timestamp' in schema_list[j][1]:
+                    # load_list.append(val[:19])
+                    if val == 'null' or val == '':
+                        load_list.append('null')
+                    else:
+                        load_list.append(datetime.strptime(val[:19], '%Y-%m-%d %H:%M:%S'))
+                elif 'bool' in schema_list[j][1]:
+                    if val == 'false':
+                        load_list.append(False)
+                    else:
+                        load_list.append(True)
                 else:
-                    load_list.append(int(val))
-            elif 'date' in schema_list[j][1]:
-                load_list.append(str(val)[:19])
-            elif 'timestamp' in schema_list[j][1]:
-                load_list.append(val[:19])
-            elif 'bool' in schema_list[j][1]:
-                if val == 'false':
-                    load_list.append(False)
-                else:
-                    load_list.append(True)
-            else:
-                load_list.append(str(val).replace("'","''"))
+                    load_list.append(str(val).replace("'", "''"))
+            except Exception as e:
+                log.errror("Exception at index " + str(j) + " from ", i)
+                raise e
+
         insert_list.append(load_list)
 
-    insert_list_to_db(connection, insert_list, table,100)
+    insert_list_to_db(connection, insert_list, table, 100)
+
 
 def insert_datarows_dct_to_table(data_list, schema_list, connection, table):
     """gets a data list and converts it to the correct data type for inserts then inserts data to a table
@@ -429,7 +507,7 @@ def insert_datarows_dct_to_table(data_list, schema_list, connection, table):
     insert_list = []
     for row in data_list:
         load_list = []
-        #for j, val in i.items():
+        # for j, val in i.items():
         for col_name, data_type in schema_list:
             val = row[col_name]
             if 'int' in data_type:
@@ -442,10 +520,11 @@ def insert_datarows_dct_to_table(data_list, schema_list, connection, table):
             elif 'timestamp' in data_type:
                 load_list.append(val[:19])
             else:
-                load_list.append(str(val))
+                load_list.append(str(val).replace("'", "''"))
         insert_list.append(load_list)
 
-    insert_list_to_db(connection, insert_list, table,100)
+    insert_list_to_db(connection, insert_list, table, 100)
+
 
 def insert_dct_to_table(dct, schema_list, connection, table):
     """gets a data list and converts it to the correct data type for inserts then inserts data to a table
@@ -472,22 +551,10 @@ def insert_dct_to_table(dct, schema_list, connection, table):
                 load_list.append('null')
             else:
                 load_list.append(float(val))
-        elif 'bool' in data_type:
-            if val == 'null' or val == '':
-                load_list.append('null')
-            else:
-                load_list.append(val)
         elif 'date' in data_type:
             load_list.append(str(val)[:19])
         elif 'timestamp' in data_type:
             load_list.append(val[:19])
         else:
-            load_list.append(str(val))
+            load_list.append(str(val).replace("'", "''"))
     insert_row_to_db(connection, load_list, table)
-
-
-
-
-
-
-
