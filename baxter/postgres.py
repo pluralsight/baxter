@@ -535,7 +535,7 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
                 else:
                     load_list.append(str(val).replace("'", "''"))
             except Exception as e:
-                log.error("Exception at index " + str(j) + " from ", i)
+                log.error("Exception at index " + str(j) + " from ", str(i))
                 raise e
 
         insert_list.append(load_list)
