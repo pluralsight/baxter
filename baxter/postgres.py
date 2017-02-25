@@ -161,6 +161,55 @@ def insert_list_to_db(connection, lst, tableName, batchsize=1000):
     return
 
 
+def upsert_list_to_db(connection, lst, table_name, key_columns, batchsize=1000):
+    """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
+        Args:
+            list: list, Values to insert to table
+            tableName: string, Fully qualified SQL table name
+            batchsize: specifies what size you'd want the batches to run as
+            connection: sql server connection
+
+        Returns:
+            None
+    """
+    insertvals = ''
+    batchcnt = 0
+    lstcnt = 0
+    lstsize = len(lst)
+    #rowstr = "SELECT "
+    start = "INSERT INTO {0} VALUES ".format(table_name)
+
+    for row in lst:
+        rowstr = ''
+        if batchcnt == batchsize or (lstcnt + 1) == lstsize:
+            for val in row:
+                if type(val) == int or type(val) == float or val == 'null':
+                    rowstr += str(val) + ","
+                elif type(val) == bool:
+                    rowstr += str(val) + ","
+                else:
+                    rowstr += "'" + str(val) + "',"
+            insertvals = insertvals + '(' + rowstr[:-1] + "),"
+            log.debug(start + insertvals[:-1])
+            c = run_sql(connection, start + insertvals[:-1])
+            insertvals = ''
+            start = "INSERT INTO {0} VALUES ".format(table_name)
+            batchcnt = 0
+        else:
+            for val in row:
+                if type(val) == int or type(val) == float or val == 'null':
+                    rowstr += str(val) + ","
+                elif type(val) == bool:
+                    rowstr += str(val) + ","
+                else:
+                    rowstr += "'" + str(val) + "',"
+            insertvals = insertvals + '(' + rowstr[:-1] + "),"
+            batchcnt += 1
+            lstcnt += 1
+
+    return
+
+
 def run_sql(connection, query):  # courseTagDict
     """Runs SQL statement and commits changes to database.
 
@@ -486,7 +535,7 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
                 else:
                     load_list.append(str(val).replace("'", "''"))
             except Exception as e:
-                log.errror("Exception at index " + str(j) + " from ", i)
+                log.error("Exception at index " + str(j) + " from ", i)
                 raise e
 
         insert_list.append(load_list)
