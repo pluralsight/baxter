@@ -85,7 +85,7 @@ def query_table(service, project_id, query):
         return result_list
 
     except HttpError as err:
-        log.error('Error:', pprint.pprint(err.content))
+        log.error('Error: %s', pprint.pprint(err.content))
 
     except AccessTokenRefreshError:
         log.error("Credentials have been revoked or expired, please re-run"
@@ -233,7 +233,7 @@ def gsutil_download(service, source_path, source_file, dest_path, parallel=True)
         parallel_param = '-m'
     else:
         parallel_param = ''
-    log.info("Running gsutil command:","gsutil", parallel_param, "cp", source_path + source_file, dest_path )
+    log.info('Running gsutil command: gsutil %s cp %s', parallel_param, source_path + source_file + " " + dest_path )
     call(["gsutil", parallel_param, "cp", source_path + source_file, dest_path], shell=False)
 
 
@@ -300,7 +300,7 @@ def job_status_loop(project_id, jobCollection, insertResponse, waitTimeSecs=10):
         time.sleep(waitTimeSecs)
 
         if 'errorResult' in job['status']:
-            log.error('Error loading table: ', pprint.pprint(job))
+            log.error('Error loading table %s: ', pprint.pprint(job))
             return
 
 

@@ -408,7 +408,7 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
                         datatype = 'string'
                     schemafile.write("%s\n" % (col + ',' + datatype))
                 except Exception as e:
-                    log.error("Exception on row ", row)
+                    log.error("Exception on row %s", row)
                     raise e
     with open(dest_file, 'wb') as outfile:
         for row in cursor:
@@ -417,7 +417,7 @@ def cursor_to_json(cursor, dest_file, dest_schema_file=None, source_schema_file=
                 outfile.write("%s\n" % json.dumps(result_dct, default=_defaultencode))
                 # outfile.write("%s\n" % json.dumps(result_dct))
             except Exception as e:
-                log.error("Exception on row ", row)
+                log.error("Exception on row %s", row)
                 raise e
 
 
@@ -535,7 +535,7 @@ def insert_datarows_to_table(data_list, schema_list, connection, table):
                 else:
                     load_list.append(str(val).replace("'", "''"))
             except Exception as e:
-                log.error("Exception at index " + str(j) + " from ", str(i))
+                log.error("Exception at index " + str(j) + " from " + str(i))
                 raise e
 
         insert_list.append(load_list)
