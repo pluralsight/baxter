@@ -124,7 +124,7 @@ def insert_list_to_db(connection, lst, tableName, batchsize=1000):
             None
     """
     insertvals = ''
-    batchcnt = 0
+    batchcnt = 1
     lstcnt = 0
     lstsize = len(lst)
     #rowstr = "SELECT "
@@ -141,11 +141,12 @@ def insert_list_to_db(connection, lst, tableName, batchsize=1000):
                 else:
                     rowstr += "'" + str(val) + "',"
             insertvals = insertvals + '(' + rowstr[:-1] + "),"
+            lstcnt += 1
             log.debug(start + insertvals[:-1])
             c = run_sql(connection, start + insertvals[:-1])
             insertvals = ''
             start = "INSERT INTO {0} VALUES ".format(tableName)
-            batchcnt = 0
+            batchcnt = 1
         else:
             for val in row:
                 if type(val) == int or type(val) == float or val == 'null':
@@ -173,7 +174,7 @@ def upsert_list_to_db(connection, lst, table_name, key_columns, batchsize=1000):
             None
     """
     insertvals = ''
-    batchcnt = 0
+    batchcnt = 1
     lstcnt = 0
     lstsize = len(lst)
     #rowstr = "SELECT "
@@ -194,7 +195,7 @@ def upsert_list_to_db(connection, lst, table_name, key_columns, batchsize=1000):
             c = run_sql(connection, start + insertvals[:-1])
             insertvals = ''
             start = "INSERT INTO {0} VALUES ".format(table_name)
-            batchcnt = 0
+            batchcnt = 1
         else:
             for val in row:
                 if type(val) == int or type(val) == float or val == 'null':
@@ -220,6 +221,7 @@ def run_sql(connection, query):  # courseTagDict
         Returns:
             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
     """
+    log.debug("Run postgres query: %s", query)
     cursor = connection.cursor()
     try:
         cursor.execute(query.encode('utf-8'))
@@ -463,6 +465,7 @@ def load_delimited_file_to_table(connection, table, source_file, schema_file, sk
         None
     """
     data_list = loop_delimited_file(source_file, delimiter=delimiter)
+    log.info("Insert %d rows to %s", len(data_list) - skipfirstrow, table)
     schema_list = get_schema_file(schema_file)
     # skips the first value of data_list which is the header
     data_list = iter(data_list)
