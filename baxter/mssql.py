@@ -31,7 +31,8 @@ def connect(server, database, username, password):
 
 
 def insert_list_to_sql(connection,lst,tableName):
-    """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
+    """DEPRECATED: Use insert_list_to_db instead
+    Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
         Args:
             list: list, Values to insert to table
             tableName: string, Fully qualified SQL table name
@@ -55,6 +56,54 @@ def insert_list_to_sql(connection,lst,tableName):
 
         c = run_sql(connection,query)
     return
+
+
+def insert_list_to_db(connection, list, tableName, batchsize=1000):
+    """Inserts from a list to a database table.  List must have the same format and item order as the table columns.
+        Args:
+            connection: sql server connection
+            list: list, Values to insert to table
+            tableName: string, Fully qualified SQL table name
+            batchsize: specifies what size you'd want the batches to run as
+
+
+        Returns:
+            None
+    """
+    insertvals = ''
+    batchcnt = 1
+    lstcnt = 0
+    lstsize = len(list)
+    start = "INSERT INTO {0} VALUES ".format(tableName)
+
+    for row in list:
+        rowstr = ''
+        for val in row:
+            if type(val) == int or type(val) == float or val == 'null':
+                rowstr += str(val) + ","
+            elif type(val) == bool:
+                if val:
+                    rowstr += "1" + ","
+                else:
+                    rowstr += "0" + ","
+            else:
+                rowstr += "'" + str(val).replace("'", "''") + "',"
+        insertvals = insertvals + '(' + rowstr[:-1] + "),"
+
+        if batchcnt == batchsize or (lstcnt + 1) == lstsize:
+
+            lstcnt += 1
+            log.debug(start + insertvals[:-1])
+            c = run_sql(connection, start + insertvals[:-1])
+            insertvals = ''
+            start = "INSERT INTO {0} VALUES ".format(tableName)
+            batchcnt = 1
+        else:
+            batchcnt += 1
+            lstcnt += 1
+
+    return
+
 
 def insert_list_to_sql_batch(connection,lst,tableName,batchsize=1000):
     """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
@@ -112,7 +161,7 @@ def run_sql(connection,query): #courseTagDict
             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
     """ 
     cursor=connection.cursor()
-    cursor.execute(query.encode('utf-8'))
+    cursor.execute(query.decode('utf-8'))
     connection.commit()
 
     return cursor

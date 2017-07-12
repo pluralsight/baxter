@@ -112,25 +112,26 @@ def insert_row_to_db(connection, lst, tableName):
 #
 #     return
 
-def insert_list_to_db(connection, lst, tableName, batchsize=1000):
+def insert_list_to_db(connection, list, tableName, batchsize=1000):
     """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
         Args:
+            connection: postgres connection
             list: list, Values to insert to table
             tableName: string, Fully qualified SQL table name
             batchsize: specifies what size you'd want the batches to run as
-            connection: sql server connection
+
 
         Returns:
             None
     """
     insertvals = ''
-    batchcnt = 0
+    batchcnt = 1
     lstcnt = 0
-    lstsize = len(lst)
+    lstsize = len(list)
     #rowstr = "SELECT "
     start = "INSERT INTO {0} VALUES ".format(tableName)
 
-    for row in lst:
+    for row in list:
         rowstr = ''
         if batchcnt == batchsize or (lstcnt + 1) == lstsize:
             for val in row:
@@ -141,11 +142,12 @@ def insert_list_to_db(connection, lst, tableName, batchsize=1000):
                 else:
                     rowstr += "'" + str(val) + "',"
             insertvals = insertvals + '(' + rowstr[:-1] + "),"
+            lstcnt += 1
             log.debug(start + insertvals[:-1])
             c = run_sql(connection, start + insertvals[:-1])
             insertvals = ''
             start = "INSERT INTO {0} VALUES ".format(tableName)
-            batchcnt = 0
+            batchcnt = 1
         else:
             for val in row:
                 if type(val) == int or type(val) == float or val == 'null':
@@ -161,48 +163,71 @@ def insert_list_to_db(connection, lst, tableName, batchsize=1000):
     return
 
 
-def upsert_list_to_db(connection, lst, table_name, key_columns, batchsize=1000):
+def upsert_list_to_db(connection, list, table_name, fields, key_columns, batchsize=1000):
     """Inserts from a list to a SQL table.  List must have the same format and item order as the table columns.
         Args:
+            connection: postgres connection
             list: list, Values to insert to table
             tableName: string, Fully qualified SQL table name
+            fields: list, Field names to build the update statment
             batchsize: specifies what size you'd want the batches to run as
-            connection: sql server connection
 
         Returns:
             None
     """
     insertvals = ''
-    batchcnt = 0
+    batchcnt = 1
     lstcnt = 0
-    lstsize = len(lst)
+    lstsize = len(list)
     #rowstr = "SELECT "
     start = "INSERT INTO {0} VALUES ".format(table_name)
 
-    for row in lst:
-        rowstr = ''
+    for row in list:
+        rowstr = u''
         if batchcnt == batchsize or (lstcnt + 1) == lstsize:
             for val in row:
                 if type(val) == int or type(val) == float or val == 'null':
-                    rowstr += str(val) + ","
+                    rowstr += val + ","
                 elif type(val) == bool:
-                    rowstr += str(val) + ","
+                    rowstr += val + ","
+                elif val is None:
+                    rowstr += 'null,'
                 else:
-                    rowstr += "'" + str(val) + "',"
+                    try:
+                        #rowstr += u"'" + val.replace("'", "''") + u"',"
+                        rowstr += "'" + val.replace("'", "''") + "',"
+                    except Exception as e:
+                        print row
+                        raise e
             insertvals = insertvals + '(' + rowstr[:-1] + "),"
             log.debug(start + insertvals[:-1])
-            c = run_sql(connection, start + insertvals[:-1])
+            update_fields = "SET "
+            for i in fields:
+                if i not in key_columns.split(","):
+                    update_fields += "{0} = EXCLUDED.{0},".format(i)
+            upsert_string = " ON CONFLICT ({0}) DO UPDATE {1};".format(key_columns, update_fields[:-1])
+            statement = start + insertvals[:-1] + upsert_string
+            #print statement
+            c = run_sql(connection, statement)
             insertvals = ''
             start = "INSERT INTO {0} VALUES ".format(table_name)
-            batchcnt = 0
+            batchcnt = 1
         else:
+
             for val in row:
                 if type(val) == int or type(val) == float or val == 'null':
-                    rowstr += str(val) + ","
+                    rowstr += val + ","
                 elif type(val) == bool:
-                    rowstr += str(val) + ","
+                    rowstr += val + ","
+                elif val is None:
+                    rowstr += 'null,'
                 else:
-                    rowstr += "'" + str(val) + "',"
+                    try:
+                        #rowstr += u"'" + val.replace("'", "''") + u"',"
+                        rowstr += "'" + val.replace("'", "''") + "',"
+                    except Exception as e:
+                        print row
+                        raise e
             insertvals = insertvals + '(' + rowstr[:-1] + "),"
             batchcnt += 1
             lstcnt += 1
@@ -220,6 +245,7 @@ def run_sql(connection, query):  # courseTagDict
         Returns:
             cursor object, Results of the call to pyodb.connection().cursor().execute(query)
     """
+    log.debug("Run postgres query: %s", query)
     cursor = connection.cursor()
     try:
         cursor.execute(query.encode('utf-8'))
@@ -463,6 +489,7 @@ def load_delimited_file_to_table(connection, table, source_file, schema_file, sk
         None
     """
     data_list = loop_delimited_file(source_file, delimiter=delimiter)
+    log.info("Insert %d rows to %s", len(data_list) - skipfirstrow, table)
     schema_list = get_schema_file(schema_file)
     # skips the first value of data_list which is the header
     data_list = iter(data_list)

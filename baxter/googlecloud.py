@@ -233,7 +233,7 @@ def gsutil_download(service, source_path, source_file, dest_path, parallel=True)
         parallel_param = '-m'
     else:
         parallel_param = ''
-    log.info('Running gsutil command: gsutil %s cp %s', parallel_param, source_path + source_file + " " + dest_path )
+    log.info('Running gsutil command: gsutil %s', parallel_param + ' cp ' + source_path + source_file + " " + dest_path)
     call(["gsutil", parallel_param, "cp", source_path + source_file, dest_path], shell=False)
 
 
@@ -293,7 +293,7 @@ def job_status_loop(project_id, jobCollection, insertResponse, waitTimeSecs=10):
         if 'DONE' == job['status']['state']:
             log.info('Done Loading!')
             if 'errorResult' in job['status']:
-                log.error('Error loading table: ', pprint.pprint(job))
+                log.error('Error loading table: %s', pprint.pprint(job))
             return
 
         log.info('Waiting for loading to complete...')
@@ -487,6 +487,51 @@ def load_from_query(service, project_id, dataset_id, target_table, source_query,
             # [Optional] Specifies whether the job is allowed to create new tables. The following values are supported: CREATE_IF_NEEDED: If the table does not exist, BigQuery creates the table. CREATE_NEVER: The table must already exist. If it does not, a 'notFound' error is returned in the job result. The default value is CREATE_IF_NEEDED. Creation, truncation and append actions occur as one atomic update upon job completion.
                 'query': source_query,
                 'useLegacySql': use_legacy_sql,
+            },
+        },
+    }
+
+    response = job_collection.insert(projectId=project_id, body=job_data).execute()
+    log.debug(response)
+    job_status_loop(project_id, job_collection, response)
+
+
+def copy_table(service, project_id, source_dataset_id, source_table, target_dataset_id, target_table,  overwrite=False):
+    """
+        Args:
+            service: BigQuery service object that is authenticated.  Example: service = build('bigquery','v2', http=http)
+            project_id: string, Name of google project
+            dataset_id: string, Name of dataset for the destination table
+            target_table: string, Name of table to copy from
+            target_table: string, Name of table to write to
+            overwrite: boolean, set as True to ovewrite data in destination table (optional)
+
+        Returns:
+            None
+    """
+    job_collection = service.jobs()
+
+    if overwrite:
+        write_disposition = 'WRITE_TRUNCATE'
+    else:
+        write_disposition = 'WRITE_APPEND'
+
+    job_data = {
+        'projectId': project_id,
+        'configuration': {
+            'copy': {
+                'sourceTable': {
+                    'projectId': project_id,
+                    'datasetId': source_dataset_id,
+                    'tableId': source_table,
+                },
+                'destinationTable': {
+                    'projectId': project_id,
+                    'datasetId': target_dataset_id,
+                    'tableId': target_table,
+                },
+                'writeDisposition': write_disposition,
+                'createDisposition': 'CREATE_IF_NEEDED',
             },
         },
     }
